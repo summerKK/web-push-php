@@ -17,14 +17,46 @@ jobs:
     strategy:
       matrix:
         php: ['7.4']
+        ext: ['curl, mbstring, openssl', 'curl, mbstring, openssl, gmp']
 
-    name: PHP ${{ matrix.php }}
+    name: PHP ${{ matrix.php }} (${{ matrix.ext }})
 
-    steps:  
+    steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Run .travis.yml build script
-        uses: ktomk/run-travis-yml@v1
+      - name: Setup PHP ${{ matrix.php }} (${{ matrix.ext }})
+        uses: shivammathur/setup-php@v2
         with:
-          file: .travis.yml
+          php-version: ${{ matrix.php }}
+          extensions: ${{ matrix.ext }}
+          coverage: none
+
+      - name: Get composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v3
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist
+
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install web-push-testing-service
+        run: |
+          npm install -g web-push-testing
+
+      - name: Run unit tests
+        run: |
+          web-push-testing --port 9012 start
+          ./vendor/bin/phpunit --color
+          web-push-testing --port 9012 stop
