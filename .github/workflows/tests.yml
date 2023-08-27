@@ -21,6 +21,9 @@ jobs:
     name: PHP ${{ matrix.php }}
 
     steps:  
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
       - name: Run .travis.yml build script
         uses: ktomk/run-travis-yml@v1
         with:
